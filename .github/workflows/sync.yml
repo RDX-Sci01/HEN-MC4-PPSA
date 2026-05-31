@@ -129,24 +129,35 @@ jobs:
       - name: Build README with cheat tables
         run: |
           sync_time=$(date -u '+%Y-%m-%d %H:%M UTC')
+          RECENT=20  # number of latest entries to show per section
 
           # trim(): strip leading/trailing whitespace and carriage returns
-          # Uses sed only — avoids xargs which breaks on apostrophes in game titles
           trim() {
             echo "$1" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
           }
 
-          # Helper: parse a .txt file into a markdown table
-          # Format of each line: FILENAME=Game Title
+          # count_entries(): return number of non-blank lines in a file
+          count_entries() {
+            local file="$1"
+            [ -f "$file" ] && grep -c '.' "$file" || echo 0
+          }
+
+          # make_table(): render last N lines of a .txt as a markdown table
+          # wrapped in a <details> collapsible block
           make_table() {
             local file="$1"
             local header="$2"
+            local total
+            total=$(count_entries "$file")
 
-            echo "### ${header}"
+            echo "<details>"
+            echo "<summary><strong>${header}</strong> — ${total} entries (showing last ${RECENT})</summary>"
             echo ""
 
             if [ ! -f "$file" ] || [ ! -s "$file" ]; then
               echo "_No entries found._"
+              echo ""
+              echo "</details>"
               echo ""
               return
             fi
@@ -154,17 +165,20 @@ jobs:
             echo "| File | Game |"
             echo "|------|------|"
 
-            while IFS='=' read -r filename game; do
-              [ -z "$filename" ] && continue
+            tail -n "$RECENT" "$file" | while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              filename="${line%%=*}"
+              game="${line#*=}"
               filename=$(trim "$filename")
               game=$(trim "$game")
               echo "| \`${filename}\` | ${game} |"
-            done < "$file"
+            done
 
+            echo ""
+            echo "</details>"
             echo ""
           }
 
-          # Write README: static header first, then auto-generated tables
           {
             # ---- Static header (preserved exactly) ----
             printf '%s\n' '# HEN PPSA Cheats 🔄 Auto Sync [![Sync Cheats](https://img.shields.io/badge/Sync%20Now-blue?style=for-the-badge)](https://github.com/RDX-Sci01/HEN-PPSA-Cheats/actions/workflows/sync.yml)'
@@ -184,9 +198,10 @@ jobs:
             printf '%s\n' ''
 
             # ---- Auto-generated tables ----
-            echo "## 📋 Cheat Lists"
+            echo "## 📋 Recently Added Cheats"
             echo ""
-            echo "> Last updated: **${sync_time}**"
+            echo "> Last updated: **${sync_time}** — showing last ${RECENT} entries per format."
+            echo "> 📄 [View full list on GitHub Pages](https://rdx-sci01.github.io/HEN-PPSA-Cheats)"
             echo ""
             make_table "cheats/mc4.txt" "MC4 Cheats"
             make_table "cheats/shn.txt" "SHN Cheats"
@@ -224,7 +239,7 @@ jobs:
             echo "$1" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
           }
 
-          # Helper: parse .txt into an HTML table
+          # Helper: parse .txt into a full HTML table
           make_html_table() {
             local file="$1"
 
@@ -237,8 +252,10 @@ jobs:
             echo "<thead><tr><th>File</th><th>Game</th></tr></thead>"
             echo "<tbody>"
 
-            while IFS='=' read -r filename game; do
-              [ -z "$filename" ] && continue
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              filename="${line%%=*}"
+              game="${line#*=}"
               filename=$(trim "$filename")
               game=$(trim "$game")
               filename_esc=$(printf '%s' "$filename" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
@@ -272,6 +289,8 @@ jobs:
               tr:nth-child(even) td { background: #f5f5f5; }
               code     { font-size: 0.85em; background: #eee; padding: 2px 4px; border-radius: 3px; }
               .meta    { color: #888; font-size: 0.9em; }
+              input    { width: 100%; padding: 8px; margin-bottom: 16px; font-size: 1em;
+                         border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
             </style>
           </head>
           <body>
@@ -283,6 +302,8 @@ jobs:
                 ⬇ cheats.zip (latest release)
               </a>
             </p>
+
+            <input type="text" id="search" placeholder="🔍 Search by filename or game title..." oninput="filterTables()">
 
             <h2>🎮 MC4 Cheats</h2>
             ${mc4_table}
@@ -297,6 +318,15 @@ jobs:
             <pre>${escaped}</pre>
 
             <p class="meta">Last sync: ${sync_time}</p>
+
+            <script>
+              function filterTables() {
+                const q = document.getElementById('search').value.toLowerCase();
+                document.querySelectorAll('tbody tr').forEach(row => {
+                  row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
+              }
+            </script>
           </body>
           </html>
           HTML
