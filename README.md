@@ -23,8 +23,8 @@ Both:
 
 <!-- GAME_TABLE -->
 
-🕒 Last Updated: 2026-05-31 18:08 UTC
+🕒 Last Updated: 2026-05-31 18:10 UTC
 
 | ID | Version | Title | Category |
 |----|---------|-------|----------|
-
+| No data found | - | - | - |
