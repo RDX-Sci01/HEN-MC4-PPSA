@@ -2,8 +2,8 @@ name: Sync HEN Cheats
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
+  schedule:    
+    - cron: "*/30 */1 * * *"
 permissions:
   contents: write
 
