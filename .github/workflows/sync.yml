@@ -20,7 +20,15 @@ jobs:
         uses: actions/checkout@v4
 
       # --------------------------
-      # 2️⃣ Clone upstream repo
+      # 2️⃣ Configure git (once, up front)
+      # --------------------------
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # --------------------------
+      # 3️⃣ Clone upstream repo
       # --------------------------
       - name: Clone upstream
         run: |
@@ -28,7 +36,7 @@ jobs:
           git clone --depth 1 https://github.com/TeeKay87/HEN-Cheats-Collection.git upstream
 
       # --------------------------
-      # 3️⃣ Filter PPSA cheats
+      # 4️⃣ Filter PPSA cheats
       # --------------------------
       - name: Build filtered collections
         run: |
@@ -57,42 +65,39 @@ jobs:
           filter_ppsa "shn" "shn.txt"
 
       # --------------------------
-      # 4️⃣ Commit & push cheats
+      # 5️⃣ Commit & push cheats
       # --------------------------
-      - name: Commit and force push changes
+      - name: Commit cheats changes
         run: |
           set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add -A cheats
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
-            exit 0
+          else
+            git commit -m "Sync upstream cheats (PPSA only)"
+            git push origin HEAD --force-with-lease
           fi
 
-          git commit -m "Sync upstream cheats (PPSA only)"
-          git push origin HEAD --force
-
       # --------------------------
-      # 5️⃣ Zip cheats folder
+      # 6️⃣ Zip cheats folder
       # --------------------------
       - name: Zip cheats folder
         run: zip -r cheats.zip cheats
 
       # --------------------------
-      # 6️⃣ Delete old rolling release
+      # 7️⃣ Delete old rolling release
       # --------------------------
       - name: Delete old release if exists
         uses: dev-drprasad/delete-tag-and-release@v1.0
+        continue-on-error: true   # safe to ignore on first run
         with:
           tag_name: latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # --------------------------
-      # 7️⃣ Create rolling release
+      # 8️⃣ Create rolling release
       # --------------------------
       - name: Create single rolling release
         uses: softprops/action-gh-release@v1
@@ -107,70 +112,60 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # --------------------------
-      # 8️⃣ Download upstream README safely
+      # 9️⃣ Download upstream README safely
       # --------------------------
       - name: Download upstream README
         run: |
           mkdir -p docs
-          curl -fLsS https://raw.githubusercontent.com/TeeKay87/HEN-Cheats-Collection/master/README.md -o docs/upstream.md
+          curl -fLsS https://raw.githubusercontent.com/TeeKay87/HEN-Cheats-Collection/master/README.md \
+            -o docs/upstream.md
 
       # --------------------------
-      # 9️⃣ Build GitHub Pages dashboard
+      # 🔟 Build GitHub Pages dashboard
       # --------------------------
-      - name: Build GitHub Pages site (line-by-line safe)
+      - name: Build GitHub Pages site
         run: |
           set -e
           cd "$GITHUB_WORKSPACE"
 
-          {
-            printf "%s\n" "<!DOCTYPE html>"
-            printf "%s\n" "<html>"
-            printf "%s\n" "<head>"
-            printf "%s\n" "<meta charset='utf-8'>"
-            printf "%s\n" "<title>HEN Cheats Dashboard</title>"
-            printf "%s\n" "<style>"
-            printf "%s\n" "body { font-family: Arial, sans-serif; margin: 20px; }"
-            printf "%s\n" "pre { background: #111; color: #eee; padding: 15px; white-space: pre-wrap; overflow-x: auto; }"
-            printf "%s\n" "h1 { color: #333; }"
-            printf "%s\n" "a { color: #1e88e5; }"
-            printf "%s\n" "</style>"
-            printf "%s\n" "</head>"
-            printf "%s\n" "<body>"
+          # Escape HTML special characters to prevent injection / broken layout
+          escaped_readme=$(sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' docs/upstream.md)
 
-            printf "%s\n" "<h1>HEN Cheats (Auto Synced)</h1>"
-            printf "%s\n" "<h2>📦 Upstream README</h2>"
-            printf "%s\n" "<pre>"
-
-            while IFS= read -r line; do
-              printf "%s\n" "$line"
-            done < "$GITHUB_WORKSPACE/docs/upstream.md"
-
-            printf "%s\n" "</pre>"
-
-            printf "%s\n" "<h2>📥 Download Latest Cheats</h2>"
-            printf "%s\n" "<p><a href='https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/cheats.zip'>Download cheats.zip</a></p>"
-
-            printf "%s\n" "<p>Last sync: $(date)</p>"
-
-            printf "%s\n" "</body>"
-            printf "%s\n" "</html>"
-          } > docs/index.html
+          cat > docs/index.html <<EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>HEN Cheats Dashboard</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              pre  { background: #111; color: #eee; padding: 15px; white-space: pre-wrap; overflow-x: auto; }
+              h1   { color: #333; }
+              a    { color: #1e88e5; }
+            </style>
+          </head>
+          <body>
+            <h1>HEN Cheats (Auto Synced)</h1>
+            <h2>📦 Upstream README</h2>
+            <pre>${escaped_readme}</pre>
+            <h2>📥 Download Latest Cheats</h2>
+            <p><a href="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/cheats.zip">Download cheats.zip</a></p>
+            <p>Last sync: $(date -u '+%Y-%m-%d %H:%M UTC')</p>
+          </body>
+          </html>
+          EOF
 
       # --------------------------
-      # 🔟 Commit GitHub Pages update
+      # 1️⃣1️⃣ Commit GitHub Pages update
       # --------------------------
       - name: Commit Pages update
         run: |
           set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add docs
 
           if git diff --cached --quiet; then
             echo "No Pages update"
-            exit 0
+          else
+            git commit -m "Auto-update GitHub Pages dashboard"
+            git push origin HEAD --force-with-lease
           fi
-
-          git commit -m "Auto-update GitHub Pages dashboard"
-          git push origin HEAD --force
