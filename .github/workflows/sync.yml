@@ -53,7 +53,7 @@ jobs:
           filter_ppsa "shn" "shn.txt"
 
       # ----------------------------------------------------
-      # GENERATE PPSA CATALOG TABLE
+      # GENERATE TABLE
       # ----------------------------------------------------
       - name: Generate PPSA game catalog
         run: |
@@ -74,13 +74,12 @@ jobs:
                 filename=$(basename "$file")
                 ID=$(echo "$filename" | cut -d'_' -f1)
 
-                # extract metadata line
                 LINE=$(grep "^$ID" cheats/$category.txt 2>/dev/null | head -n1)
 
                 if [ -n "$LINE" ]; then
                   TITLE=$(echo "$LINE" | cut -d'=' -f2)
-                  META=$(echo "$LINE" | cut -d'=' -f1)
-                  VERSION=$(echo "$META" | cut -d'_' -f2 | cut -d'.' -f1-3)
+                  META=$(echo "$LINE" | cut -d'_' -f2)
+                  VERSION=$(echo "$META" | cut -d'.' -f1-3)
                 else
                   TITLE="Unknown"
                   VERSION=$(echo "$filename" | cut -d'_' -f2 | cut -d'.' -f1-3)
@@ -91,8 +90,7 @@ jobs:
             fi
           done
 
-          # deduplicate by ID + sort
-          sort -t'|' -k2,2 -u $TMP | sort -t'|' -k2,2 > TMP_SORTED
+          sort -t'|' -k2,2 -u $TMP > TMP_SORTED
 
           while IFS='|' read -r date id version title category; do
             echo "| $date | ADDED | $id | $version | $title | $category |" >> $OUT
@@ -101,19 +99,29 @@ jobs:
           rm -f $TMP TMP_SORTED
 
       # ----------------------------------------------------
-      # INJECT INTO README
+      # SAFE README INJECTION (FIXED)
       # ----------------------------------------------------
-      - name: Inject catalog into README
+      - name: Inject catalog into README safely
         run: |
           set -e
 
+          # ensure placeholder exists (auto-repair)
           if ! grep -q "<!-- GAME_TABLE -->" README.md; then
-            echo "Missing <!-- GAME_TABLE --> in README"
-            exit 1
+            echo "" >> README.md
+            echo "## 📊 PPSA Game Catalog" >> README.md
+            echo "" >> README.md
+            echo "<!-- GAME_TABLE -->" >> README.md
           fi
 
-          sed '/<!-- GAME_TABLE -->/r cheats/GAME_TABLE.md' README.md | \
-          sed '/<!-- GAME_TABLE -->/d' > README.tmp
+          awk '
+            /<!-- GAME_TABLE -->/ {
+              print
+              while ((getline line < "cheats/GAME_TABLE.md") > 0)
+                print line
+              next
+            }
+            { print }
+          ' README.md > README.tmp
 
           mv README.tmp README.md
 
@@ -134,5 +142,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update PPSA catalog (filtered + deduped + sorted)"
+          git commit -m "Update PPSA catalog (stable injection)"
           git push origin HEAD --force
