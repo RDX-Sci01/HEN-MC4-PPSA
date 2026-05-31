@@ -24,14 +24,14 @@ jobs:
           git clone --depth 1 https://github.com/TeeKay87/HEN-Cheats-Collection.git upstream
 
       # ----------------------------------------------------
-      # FILTER PPSA FILES
+      # FILTER PPSA FILES (CLEAN STRUCTURE)
       # ----------------------------------------------------
       - name: Build filtered PPSA collections
         run: |
           set -e
 
           rm -rf cheats
-          mkdir -p cheats/mc4 cheats/json cheats/shn
+          mkdir -p cheats
 
           SRC="upstream/cheats"
 
@@ -39,12 +39,16 @@ jobs:
             local folder="$1"
             local txtfile="$2"
 
+            mkdir -p "cheats/$folder/files"
+
+            # Copy PPSA files
             if [ -d "$SRC/$folder" ]; then
-              find "$SRC/$folder" -type f -name 'PPSA*' -exec cp {} "cheats/$folder/" \;
+              find "$SRC/$folder" -type f -name 'PPSA*' -exec cp {} "cheats/$folder/files/" \;
             fi
 
+            # Copy metadata file and filter PPSA lines
             if [ -f "$SRC/$txtfile" ]; then
-              grep '^PPSA' "$SRC/$txtfile" > "cheats/$txtfile" || true
+              grep '^PPSA' "$SRC/$txtfile" > "cheats/$folder/$txtfile" || true
             fi
           }
 
@@ -53,7 +57,7 @@ jobs:
           filter_ppsa "shn" "shn.txt"
 
       # ----------------------------------------------------
-      # GENERATE CLEAN CATALOG
+      # GENERATE GAME CATALOG
       # ----------------------------------------------------
       - name: Generate PPSA game catalog
         run: |
@@ -62,19 +66,22 @@ jobs:
           OUT="cheats/GAME_TABLE.md"
           TMP=$(mktemp)
 
-          echo "| ID | Version | Title | Category |" > $OUT
-          echo "|----|---------|-------|----------|" >> $OUT
+          echo "| ID | Version | Title | Category |" > "$OUT"
+          echo "|----|---------|-------|----------|" >> "$OUT"
 
           for category in mc4 json shn; do
-            if [ -d "cheats/$category" ]; then
-              for file in cheats/$category/PPSA*; do
+            FILE_DIR="cheats/$category/files"
+            META_FILE="cheats/$category/${category}.txt"
+
+            if [ -d "$FILE_DIR" ]; then
+              for file in "$FILE_DIR"/PPSA*; do
                 [ -e "$file" ] || continue
 
                 filename=$(basename "$file")
-                ID=$(echo "$filename" | cut -d'_' -f1)
 
-                # find metadata line: PPSAxxxx_version.ext=Title
-                LINE=$(grep "^$ID" cheats/$category.txt 2>/dev/null | head -n1)
+                ID="${filename%%_*}"
+
+                LINE=$(grep "^$ID" "$META_FILE" 2>/dev/null | head -n1)
 
                 if [ -n "$LINE" ]; then
                   TITLE=$(echo "$LINE" | cut -d'=' -f2)
@@ -85,45 +92,46 @@ jobs:
                   VERSION=$(echo "$filename" | cut -d'_' -f2 | cut -d'.' -f1-3)
                 fi
 
-                echo "$ID|$VERSION|$TITLE|$category" >> $TMP
+                echo "$ID|$VERSION|$TITLE|$category" >> "$TMP"
               done
             fi
           done
 
-          # deduplicate + sort by ID
-          sort -t'|' -k1,1 -u $TMP | sort -t'|' -k1,1 > TMP_SORTED
+          sort -t'|' -k1,1 -u "$TMP" > TMP_SORTED
 
           while IFS='|' read -r id version title category; do
-            echo "| $id | $version | $title | $category |" >> $OUT
+            echo "| $id | $version | $title | $category |" >> "$OUT"
           done < TMP_SORTED
 
-          rm -f $TMP TMP_SORTED
+          rm -f "$TMP" TMP_SORTED
 
       # ----------------------------------------------------
-      # READ TIME STAMP
+      # TIMESTAMP
       # ----------------------------------------------------
       - name: Generate timestamp
         run: |
-          echo "🕒 Last Updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > cheats/TIMESTAMP.md
+          date -u '+🕒 Last Updated: %Y-%m-%d %H:%M UTC' > cheats/TIMESTAMP.md
 
       # ----------------------------------------------------
-      # SAFE README INJECTION (SCROLLABLE)
+      # SAFE README INJECTION (IDEMPOTENT)
       # ----------------------------------------------------
       - name: Inject catalog into README safely
         run: |
           set -e
 
-          # ensure placeholder exists
           if ! grep -q "<!-- GAME_TABLE -->" README.md; then
-            echo "" >> README.md
-            echo "## 📊 PPSA Game Catalog" >> README.md
-            echo "<!-- GAME_TABLE -->" >> README.md
+            cat >> README.md << 'EOF'
+
+## 📊 PPSA Game Catalog
+<!-- GAME_TABLE -->
+EOF
           fi
 
           awk '
             /<!-- GAME_TABLE -->/ {
-              print
+              print "<!-- GAME_TABLE -->"
               print ""
+
               while ((getline line < "cheats/TIMESTAMP.md") > 0)
                 print line
 
@@ -142,7 +150,7 @@ jobs:
           mv README.tmp README.md
 
       # ----------------------------------------------------
-      # COMMIT & PUSH
+      # COMMIT & PUSH (SAFE)
       # ----------------------------------------------------
       - name: Commit and push changes
         run: |
@@ -158,5 +166,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update PPSA catalog (clean + scrollable + timestamp)"
-          git push origin HEAD --force
+          git commit -m "Update PPSA catalog (clean + deterministic build)"
+          git push origin HEAD --force-with-lease
