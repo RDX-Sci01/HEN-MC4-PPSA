@@ -3,7 +3,7 @@ name: Sync HEN Cheats
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"  # every 30 minutes
+    - cron: "*/30 * * * *"
 
 permissions:
   contents: write
@@ -11,9 +11,6 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
@@ -28,29 +25,24 @@ jobs:
         run: |
           set -e
 
-          # Delete old cheats folder
           rm -rf cheats
           mkdir -p cheats/mc4 cheats/json cheats/shn
 
           SRC="upstream/cheats"
 
-          # Function to filter folder + txt file to PPSA only
           filter_ppsa() {
             local folder="$1"
             local txtfile="$2"
 
-            # Copy only PPSA* files from folder
             if [ -d "$SRC/$folder" ]; then
               find "$SRC/$folder" -type f -name 'PPSA*' -exec cp {} "cheats/$folder/" \;
             fi
 
-            # Filter txt file for PPSA lines
             if [ -f "$SRC/$txtfile" ]; then
               grep '^PPSA' "$SRC/$txtfile" > "cheats/$txtfile" || true
             fi
           }
 
-          # Apply filtering to all categories
           filter_ppsa "mc4" "mc4.txt"
           filter_ppsa "json" "json.txt"
           filter_ppsa "shn" "shn.txt"
@@ -69,30 +61,27 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Sync upstream cheats: MC4, JSON, SHN (PPSA only)"
-
-          # Force push to overwrite old cheats
+          git commit -m "Sync upstream cheats (PPSA only)"
           git push origin HEAD --force
 
       - name: Zip cheats folder
         run: zip -r cheats.zip cheats
 
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
+      - name: Delete old release (if exists)
+        uses: dev-drprasad/delete-tag-and-release@v1.0
         with:
-          tag_name: cheats-sync-${{ github.run_number }}
-          release_name: "Cheats Sync #${{ github.run_number }}"
-          draft: false
-          prerelease: false
-          body: |
-            Auto-generated release of PPSA cheats.
-            Includes MC4, JSON, SHN collections.
+          tag_name: latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload cheats.zip to release
+      - name: Create single rolling release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: latest
+          name: "HEN Cheats (Latest)"
+          body: |
+            Auto-updated PPSA cheats collection.
+            Always contains the latest synced MC4, JSON, SHN data.
           files: cheats.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
