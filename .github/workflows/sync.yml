@@ -1,4 +1,4 @@
-name: Sync HEN Cheats (PPSA Clean Catalog)
+name: Sync HEN Cheats (PPSA Web Catalog)
 
 on:
   workflow_dispatch:
@@ -12,26 +12,23 @@ jobs:
   sync:
     runs-on: ubuntu-latest
 
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Clone upstream repository
+      - name: Clone upstream
         run: |
           git clone --depth 1 https://github.com/TeeKay87/HEN-Cheats-Collection.git upstream
 
       # ----------------------------------------------------
-      # BUILD FILTERED DATASET
+      # BUILD FILTERED DATA
       # ----------------------------------------------------
-      - name: Build filtered PPSA collections
+      - name: Build PPSA dataset
         run: |
           set -e
 
-          rm -rf cheats
-          mkdir -p cheats
+          rm -rf cheats docs
+          mkdir -p cheats docs
 
           SRC="upstream/cheats"
 
@@ -55,13 +52,15 @@ jobs:
           filter_ppsa "shn" "shn.txt"
 
       # ----------------------------------------------------
-      # GENERATE CLEAN MARKDOWN TABLE
+      # GENERATE JSON + HTML DATA
       # ----------------------------------------------------
-      - name: Generate PPSA catalog
+      - name: Build catalog (JSON + HTML)
         run: |
           set -e
 
-          OUT="cheats/GAME_TABLE.md"
+          JSON="docs/catalog.json"
+          HTML="docs/index.html"
+
           TMP=$(mktemp)
 
           for category in mc4 json shn; do
@@ -95,61 +94,110 @@ jobs:
 
           sort -t'|' -k1,1 -u "$TMP" > TMP_SORTED
 
-          {
-            echo "| ID | Version | Title | Category |"
-            echo "|----|---------|-------|----------|"
+          # ---------------- JSON ----------------
+          echo "[" > "$JSON"
+          first=1
 
-            while IFS='|' read -r id version title category; do
-              [ -z "$id" ] && continue
-              echo "| $id | $version | $title | $category |"
-            done < TMP_SORTED
+          while IFS='|' read -r id version title category; do
+            [ -z "$id" ] && continue
 
-            echo ""
-          } > "$OUT"
+            if [ $first -eq 0 ]; then
+              echo "," >> "$JSON"
+            fi
+            first=0
+
+            echo "  {\"id\":\"$id\",\"version\":\"$version\",\"title\":\"$title\",\"category\":\"$category\"}" >> "$JSON"
+          done < TMP_SORTED
+
+          echo "]" >> "$JSON"
+
+          # ---------------- HTML UI ----------------
+          cat > "$HTML" << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PPSA Catalog</title>
+
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    input { padding: 10px; width: 300px; margin-bottom: 15px; }
+
+    .box {
+      max-height: 500px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: left; }
+    th { background: #f4f4f4; position: sticky; top: 0; }
+  </style>
+</head>
+
+<body>
+
+<h2>PPSA Game Catalog</h2>
+
+<input type="text" id="search" placeholder="Search..." onkeyup="filter()" />
+
+<div class="box">
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Version</th>
+      <th>Title</th>
+      <th>Category</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+</div>
+
+<script>
+let data = [];
+
+async function load() {
+  const res = await fetch('catalog.json');
+  data = await res.json();
+  render(data);
+}
+
+function render(rows) {
+  const body = document.getElementById("rows");
+  body.innerHTML = "";
+
+  rows.forEach(r => {
+    body.innerHTML += `
+      <tr>
+        <td>${r.id}</td>
+        <td>${r.version}</td>
+        <td>${r.title}</td>
+        <td>${r.category}</td>
+      </tr>
+    `;
+  });
+}
+
+function filter() {
+  const q = document.getElementById("search").value.toLowerCase();
+  render(data.filter(r =>
+    (r.id + r.title + r.category).toLowerCase().includes(q)
+  ));
+}
+
+load();
+</script>
+
+</body>
+</html>
+EOF
 
           rm -f "$TMP" TMP_SORTED
 
       # ----------------------------------------------------
-      # TIMESTAMP GENERATION
-      # ----------------------------------------------------
-      - name: Generate timestamp
-        run: |
-          date -u '+🕒 Last Updated: %Y-%m-%d %H:%M UTC' > cheats/TIMESTAMP.md
-
-      # ----------------------------------------------------
-      # README FULL REPLACE INJECTION (NO DUPLICATES EVER)
-      # ----------------------------------------------------
-      - name: Inject catalog into README (full replace mode)
-        run: |
-          set -e
-
-          if ! grep -q "<!-- GAME_TABLE -->" README.md; then
-            printf "\n## 📊 PPSA Game Catalog\n<!-- GAME_TABLE -->\n" >> README.md
-          fi
-
-          awk '
-            /<!-- GAME_TABLE -->/ {
-              print "<!-- GAME_TABLE -->"
-              print ""
-
-              while ((getline line < "cheats/TIMESTAMP.md") > 0)
-                print line
-
-              print ""
-
-              while ((getline line < "cheats/GAME_TABLE.md") > 0)
-                print line
-
-              next
-            }
-
-            { print }
-          ' README.md > README.tmp
-
-          mv README.tmp README.md
-
-      # ----------------------------------------------------
-      # COMMIT & PUSH (SAFE FORCE)
+      # COMMIT & PUSH
       # ----------------------------------------------------
       - name: Commit and push changes
         run: |
@@ -158,12 +206,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add README.md cheats
+          git add docs cheats
 
           if git diff --cached --quiet; then
             echo "No changes"
             exit 0
           fi
 
-          git commit -m "Update PPSA catalog (atomic full replace sync)"
+          git commit -m "Full PPSA web catalog sync (JSON + UI)"
           git push origin HEAD --force-with-lease
