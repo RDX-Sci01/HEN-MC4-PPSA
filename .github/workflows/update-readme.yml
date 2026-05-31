@@ -13,42 +13,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Build dashboard block (no EOF)
+      # -----------------------------
+      # 1️⃣ Download upstream README
+      # -----------------------------
+      - name: Fetch upstream README
+        run: |
+          set -e
+          curl -fLsS \
+            https://raw.githubusercontent.com/TeeKay87/HEN-Cheats-Collection/master/README.md \
+            -o upstream.md
+
+      # -----------------------------
+      # 2️⃣ Build safe injection block
+      # -----------------------------
+      - name: Build injection block
         run: |
           set -e
 
-          rm -f dashboard.txt
+          rm -f upstream_block.txt
 
-          printf "%s\n" "## 📦 HEN Cheats Dashboard" >> dashboard.txt
-          printf "%s\n" "" >> dashboard.txt
-          printf "%s\n" "- 📥 Latest release: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/cheats.zip" >> dashboard.txt
-          printf "%s\n" "- 🌐 Live dashboard: https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/" >> dashboard.txt
-          printf "%s\n" "- 🔄 Last update: $(date)" >> dashboard.txt
+          printf "%s\n" "### 🔄 Upstream README" >> upstream_block.txt
+          printf "%s\n" "" >> upstream_block.txt
 
-      - name: Inject into README (safe replace)
+          while IFS= read -r line; do
+            printf "%s\n" "$line"
+          done < upstream.md >> upstream_block.txt
+
+      # -----------------------------
+      # 3️⃣ Inject into README safely
+      # -----------------------------
+      - name: Inject upstream into README
         run: |
           set -e
 
           awk '
           BEGIN {
-            while ((getline line < "dashboard.txt") > 0) {
+            while ((getline line < "upstream_block.txt") > 0) {
               block = block line "\n"
             }
-            close("dashboard.txt")
+            close("upstream_block.txt")
             skip = 0
           }
 
-          /<!-- DASHBOARD:START -->/ {
+          /<!-- UPSTREAM:START -->/ {
             print
             printf "%s", block
             skip = 1
             next
           }
 
-          /<!-- DASHBOARD:END -->/ {
+          /<!-- UPSTREAM:END -->/ {
             skip = 0
           }
 
@@ -57,7 +74,10 @@ jobs:
 
           mv README.tmp README.md
 
-      - name: Commit changes
+      # -----------------------------
+      # 4️⃣ Commit changes
+      # -----------------------------
+      - name: Commit update
         run: |
           set -e
 
@@ -71,5 +91,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Auto update README dashboard"
+          git commit -m "Auto update upstream README content"
           git push origin HEAD
