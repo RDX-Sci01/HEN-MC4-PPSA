@@ -107,17 +107,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # --------------------------
-      # 8️⃣ Build GitHub Pages dashboard
+      # 8️⃣ Download upstream README safely
       # --------------------------
-      - name: Build GitHub Pages site
+      - name: Download upstream README
+        run: |
+          mkdir -p docs
+          curl -fLsS https://raw.githubusercontent.com/TeeKay87/HEN-Cheats-Collection/master/README.md -o docs/upstream.md
+
+      # --------------------------
+      # 9️⃣ Build GitHub Pages dashboard
+      # --------------------------
+      - name: Build GitHub Pages site (line-by-line safe)
         run: |
           set -e
-          mkdir -p docs
+          cd "$GITHUB_WORKSPACE"
 
-          # Fetch upstream README
-          UPSTREAM_README=$(curl -s https://raw.githubusercontent.com/TeeKay87/HEN-Cheats-Collection/master/README.md)
-
-          # Build index.html                
           {
             printf "%s\n" "<!DOCTYPE html>"
             printf "%s\n" "<html>"
@@ -134,14 +138,12 @@ jobs:
             printf "%s\n" "<body>"
 
             printf "%s\n" "<h1>HEN Cheats (Auto Synced)</h1>"
-
             printf "%s\n" "<h2>📦 Upstream README</h2>"
             printf "%s\n" "<pre>"
 
-            # Print README safely line-by-line (NO parsing issues)
             while IFS= read -r line; do
               printf "%s\n" "$line"
-            done < upstream.md
+            done < "$GITHUB_WORKSPACE/docs/upstream.md"
 
             printf "%s\n" "</pre>"
 
@@ -153,8 +155,9 @@ jobs:
             printf "%s\n" "</body>"
             printf "%s\n" "</html>"
           } > docs/index.html
-          
-      # 9️⃣ Commit GitHub Pages update
+
+      # --------------------------
+      # 🔟 Commit GitHub Pages update
       # --------------------------
       - name: Commit Pages update
         run: |
