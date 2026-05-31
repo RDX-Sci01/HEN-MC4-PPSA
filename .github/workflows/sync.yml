@@ -12,9 +12,12 @@ jobs:
   sync:
     runs-on: ubuntu-latest
 
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
 
       - name: Clone upstream
         run: |
@@ -29,13 +32,11 @@ jobs:
 
           SRC="upstream/cheats"
 
-          # Copy PPSA MC4 cheat files
           find "$SRC/mc4" \
             -type f \
             -name 'PPSA*' \
             -exec cp {} cheats/mc4/ \;
 
-          # Filter PPSA entries from index file (if it exists)
           if [ -f "$SRC/mc4.txt" ]; then
             grep '^PPSA' "$SRC/mc4.txt" > cheats/mc4.txt || true
           fi
@@ -50,7 +51,7 @@ jobs:
           git add cheats
 
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "No changes"
             exit 0
           fi
 
