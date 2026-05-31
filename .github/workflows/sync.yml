@@ -51,16 +51,30 @@ jobs:
 
           SRC="upstream/cheats"
 
+          # Shared helper: strip leading/trailing whitespace and carriage returns
+          trim() {
+            echo "$1" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+          }
+
+          # filter_ppsa(): copy PPSA* files and grep PPSA lines from .txt
+          # Logs a count so we can spot upstream structural changes.
           filter_ppsa() {
             local folder="$1"
             local txtfile="$2"
 
             if [ -d "$SRC/$folder" ]; then
+              count=$(find "$SRC/$folder" -type f -name 'PPSA*' | wc -l)
+              echo "Found $count PPSA file(s) in $folder"
               find "$SRC/$folder" -type f -name 'PPSA*' -exec cp {} "cheats/$folder/" \;
+            else
+              echo "WARNING: upstream folder '$folder' not found — skipping file copy"
             fi
 
             if [ -f "$SRC/$txtfile" ]; then
               grep '^PPSA' "$SRC/$txtfile" > "cheats/$txtfile" || true
+              echo "Filtered $(wc -l < "cheats/$txtfile") PPSA line(s) from $txtfile"
+            else
+              echo "WARNING: upstream file '$txtfile' not found — skipping txt filter"
             fi
           }
 
@@ -69,67 +83,21 @@ jobs:
           filter_ppsa "shn" "shn.txt"
 
       # --------------------------
-      # 5️⃣ Commit & push cheats
-      #    Only stage cheats/ — never touch .github/workflows/
-      # --------------------------
-      - name: Commit cheats changes
-        run: |
-          git add cheats/
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Sync upstream cheats (PPSA only)"
-            git push origin HEAD --force-with-lease
-          fi
-
-      # --------------------------
-      # 6️⃣ Zip cheats folder
-      # --------------------------
-      - name: Zip cheats folder
-        run: zip -r cheats.zip cheats/
-
-      # --------------------------
-      # 7️⃣ Delete old rolling release
-      # --------------------------
-      - name: Delete old release if exists
-        uses: dev-drprasad/delete-tag-and-release@v1.1
-        continue-on-error: true  # safe on first run when no release exists yet
-        with:
-          tag_name: latest
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      # --------------------------
-      # 8️⃣ Create rolling release
-      # --------------------------
-      - name: Create rolling release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: "HEN Cheats (Latest)"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            Auto-updated PPSA cheats collection.
-            Always contains the latest synced MC4, JSON, and SHN data.
-          files: cheats.zip
-
-      # --------------------------
-      # 9️⃣ Download upstream README
+      # 5️⃣ Download upstream README
       # --------------------------
       - name: Download upstream README
         run: |
           mkdir -p docs
-          curl -fLsS \
+          curl -fLsS --max-time 30 \
             https://raw.githubusercontent.com/TeeKay87/HEN-Cheats-Collection/master/README.md \
             -o docs/upstream.md
 
       # --------------------------
-      # 🔟 Build README.md with cheat tables
+      # 6️⃣ Build README.md with cheat tables
       # --------------------------
       - name: Build README with cheat tables
         run: |
           sync_time=$(date -u '+%Y-%m-%d %H:%M UTC')
-          
 
           # trim(): strip leading/trailing whitespace and carriage returns
           trim() {
@@ -212,22 +180,7 @@ jobs:
           } > README.md
 
       # --------------------------
-      # 1️⃣1️⃣ Commit README update
-      #     Only stage README.md — never touch .github/workflows/
-      # --------------------------
-      - name: Commit README update
-        run: |
-          git add README.md
-
-          if git diff --cached --quiet; then
-            echo "No README update needed"
-          else
-            git commit -m "Auto-update README cheat tables"
-            git push origin HEAD --force-with-lease
-          fi
-
-      # --------------------------
-      # 1️⃣2️⃣ Build GitHub Pages dashboard
+      # 7️⃣ Build GitHub Pages dashboard
       # --------------------------
       - name: Build GitHub Pages site
         run: |
@@ -239,7 +192,7 @@ jobs:
             echo "$1" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
           }
 
-          # Helper: parse .txt into a full HTML table
+          # make_html_table(): parse .txt into a full HTML table
           make_html_table() {
             local file="$1"
 
@@ -332,16 +285,46 @@ jobs:
           HTML
 
       # --------------------------
-      # 1️⃣3️⃣ Commit GitHub Pages update
-      #     Only stage docs/ — never touch .github/workflows/
+      # 8️⃣ Commit all changes in one push
+      #    Stages cheats/, README.md, docs/ — never .github/workflows/
       # --------------------------
-      - name: Commit Pages update
+      - name: Commit all changes
         run: |
-          git add docs/
+          git add cheats/ README.md docs/
 
           if git diff --cached --quiet; then
-            echo "No Pages update needed"
+            echo "No changes to commit"
           else
-            git commit -m "Auto-update GitHub Pages dashboard"
+            git commit -m "Sync upstream cheats + update README and Pages [skip ci]"
             git push origin HEAD --force-with-lease
           fi
+
+      # --------------------------
+      # 9️⃣ Zip cheats folder
+      # --------------------------
+      - name: Zip cheats folder
+        run: zip -r cheats.zip cheats/
+
+      # --------------------------
+      # 🔟 Delete old rolling release
+      # --------------------------
+      - name: Delete old release if exists
+        uses: dev-drprasad/delete-tag-and-release@v1.1
+        continue-on-error: true  # safe on first run when no release exists yet
+        with:
+          tag_name: latest
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # --------------------------
+      # 1️⃣1️⃣ Create rolling release
+      # --------------------------
+      - name: Create rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "HEN Cheats (Latest)"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Auto-updated PPSA cheats collection.
+            Always contains the latest synced MC4, JSON, and SHN data.
+          files: cheats.zip
