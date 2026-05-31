@@ -18,9 +18,6 @@ Both:
 - `PPSA*` files
 - `PPSA` lines in `.txt` files
 ---
-
-## 📦 HEN Cheats Dashboard
-
 <!-- DASHBOARD:START -->
 ## 📦 HEN Cheats Dashboard
 
