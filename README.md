@@ -1,4 +1,4 @@
-# HEN PPSA Cheats Sync
+# HEN PPSA Cheats 🔄 Auto Sync 
 
 This repository automatically syncs and filters cheat data from:
 
@@ -19,7 +19,7 @@ Both:
 - `PPSA` lines in `.txt` files
 ---
 
-## 🔄 Auto Sync
+## 
 - Runs every 6 hours via GitHub Actions
 - Always replaces old data with fresh upstream sync
 ---
