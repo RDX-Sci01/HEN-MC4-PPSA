@@ -2,8 +2,9 @@ name: Sync HEN Cheats
 
 on:
   workflow_dispatch:
-  schedule:    
-    - cron: "*/30 */1 * * *"
+  schedule:
+    - cron: "*/30 * * * *"  # every 30 minutes
+
 permissions:
   contents: write
 
@@ -20,6 +21,7 @@ jobs:
 
       - name: Clone upstream
         run: |
+          set -e
           git clone --depth 1 https://github.com/TeeKay87/HEN-Cheats-Collection.git upstream
 
       - name: Build filtered collections
@@ -60,7 +62,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add cheats
+          git add -A cheats
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
@@ -71,3 +73,26 @@ jobs:
 
           # Force push to overwrite old cheats
           git push origin HEAD --force
+
+      - name: Zip cheats folder
+        run: zip -r cheats.zip cheats
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        with:
+          tag_name: cheats-sync-${{ github.run_number }}
+          release_name: "Cheats Sync #${{ github.run_number }}"
+          draft: false
+          prerelease: false
+          body: |
+            Auto-generated release of PPSA cheats.
+            Includes MC4, JSON, SHN collections.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload cheats.zip to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: cheats.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
