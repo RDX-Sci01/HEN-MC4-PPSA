@@ -1,4 +1,4 @@
-name: Sync HEN MC4 PPSA
+name: Sync HEN Cheats
 
 on:
   workflow_dispatch:
@@ -23,22 +23,35 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/TeeKay87/HEN-Cheats-Collection.git upstream
 
-      - name: Build filtered collection
+      - name: Build filtered collections
         run: |
           set -e
 
           rm -rf cheats
-          mkdir -p cheats/mc4
+          mkdir -p cheats/mc4 cheats/json cheats/shn
 
           SRC="upstream/cheats"
 
-          find "$SRC/mc4" \
-            -type f \
-            -name 'PPSA*' \
-            -exec cp {} cheats/mc4/ \;
-
+          # ---- MC4 folder ----
+          find "$SRC/mc4" -type f -name 'PPSA*' -exec cp {} cheats/mc4/ \;
           if [ -f "$SRC/mc4.txt" ]; then
             grep '^PPSA' "$SRC/mc4.txt" > cheats/mc4.txt || true
+          fi
+
+          # ---- JSON folder ----
+          if [ -d "$SRC/json" ]; then
+            cp -r "$SRC/json/"* cheats/json/
+          fi
+          if [ -f "$SRC/json.txt" ]; then
+            grep '.*' "$SRC/json.txt" > cheats/json.txt || true
+          fi
+
+          # ---- SHN folder ----
+          if [ -d "$SRC/shn" ]; then
+            cp -r "$SRC/shn/"* cheats/shn/
+          fi
+          if [ -f "$SRC/shn.txt" ]; then
+            grep '.*' "$SRC/shn.txt" > cheats/shn.txt || true
           fi
 
       - name: Commit and push changes
@@ -55,5 +68,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Sync upstream PPSA cheats"
+          git commit -m "Sync upstream cheats: MC4, JSON, SHN"
           git push origin HEAD
