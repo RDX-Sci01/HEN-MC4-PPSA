@@ -24,12 +24,9 @@ jobs:
           git clone --depth 1 https://github.com/TeeKay87/HEN-Cheats-Collection.git upstream
 
       # ----------------------------------------------------
-      # FILTER PPSA FILES (CLEAN STRUCTURE)
-      # ----------------------------------------------------
       - name: Build filtered PPSA collections
         run: |
           set -e
-
           rm -rf cheats
           mkdir -p cheats
 
@@ -41,12 +38,10 @@ jobs:
 
             mkdir -p "cheats/$folder/files"
 
-            # Copy PPSA files
             if [ -d "$SRC/$folder" ]; then
               find "$SRC/$folder" -type f -name 'PPSA*' -exec cp {} "cheats/$folder/files/" \;
             fi
 
-            # Copy metadata file and filter PPSA lines
             if [ -f "$SRC/$txtfile" ]; then
               grep '^PPSA' "$SRC/$txtfile" > "cheats/$folder/$txtfile" || true
             fi
@@ -57,12 +52,9 @@ jobs:
           filter_ppsa "shn" "shn.txt"
 
       # ----------------------------------------------------
-      # GENERATE GAME CATALOG
-      # ----------------------------------------------------
       - name: Generate PPSA game catalog
         run: |
           set -e
-
           OUT="cheats/GAME_TABLE.md"
           TMP=$(mktemp)
 
@@ -76,11 +68,8 @@ jobs:
             if [ -d "$FILE_DIR" ]; then
               for file in "$FILE_DIR"/PPSA*; do
                 [ -e "$file" ] || continue
-
                 filename=$(basename "$file")
-
                 ID="${filename%%_*}"
-
                 LINE=$(grep "^$ID" "$META_FILE" 2>/dev/null | head -n1)
 
                 if [ -n "$LINE" ]; then
@@ -106,65 +95,45 @@ jobs:
           rm -f "$TMP" TMP_SORTED
 
       # ----------------------------------------------------
-      # TIMESTAMP
-      # ----------------------------------------------------
       - name: Generate timestamp
         run: |
           date -u '+🕒 Last Updated: %Y-%m-%d %H:%M UTC' > cheats/TIMESTAMP.md
 
       # ----------------------------------------------------
-      # SAFE README INJECTION (IDEMPOTENT)
-      # ----------------------------------------------------
       - name: Inject catalog into README safely
         run: |
           set -e
-
           if ! grep -q "<!-- GAME_TABLE -->" README.md; then
-            cat >> README.md << 'EOF'
-
-## 📊 PPSA Game Catalog
-<!-- GAME_TABLE -->
-EOF
+            printf "\n## 📊 PPSA Game Catalog\n<!-- GAME_TABLE -->\n" >> README.md
           fi
 
           awk '
             /<!-- GAME_TABLE -->/ {
               print "<!-- GAME_TABLE -->"
               print ""
-
               while ((getline line < "cheats/TIMESTAMP.md") > 0)
                 print line
-
               print ""
               print "<div style=\"max-height:500px; overflow:auto; border:1px solid #ccc; padding:5px\">"
-
               while ((getline line < "cheats/GAME_TABLE.md") > 0)
                 print line
-
               print "</div>"
               next
             }
             { print }
           ' README.md > README.tmp
-
           mv README.tmp README.md
 
-      # ----------------------------------------------------
-      # COMMIT & PUSH (SAFE)
       # ----------------------------------------------------
       - name: Commit and push changes
         run: |
           set -e
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add README.md cheats
-
           if git diff --cached --quiet; then
             echo "No changes"
             exit 0
           fi
-
           git commit -m "Update PPSA catalog (clean + deterministic build)"
           git push origin HEAD --force-with-lease
