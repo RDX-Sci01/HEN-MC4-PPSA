@@ -17,11 +17,11 @@ Both:
 
 ## 📋 Cheat Lists
 
-> Last updated: **2026-06-10 20:24 UTC**
+> Last updated: **2026-06-10 22:00 UTC**
 > 📄 [View full list on GitHub Pages](https://rdx-sci01.github.io/HEN-PPSA-Cheats)
 
 <details>
-<summary><strong>MC4 Cheats</strong> — 130 entries</summary>
+<summary><strong>MC4 Cheats</strong> — 133 entries</summary>
 
 | File | Game |
 |------|------|
@@ -49,6 +49,7 @@ Both:
 | `PPSA02633_01.000.000.mc4` | Street Fighter 6 |
 | `PPSA02663_01.000.000.mc4` | Alex Kidd in Miracle World DX |
 | `PPSA02868_01.000.008.mc4` | Mortal Shell: Enhanced Edition |
+| `PPSA03016_01.004.003.mc4` | Marvel’s Spider-Man 2 |
 | `PPSA03098_01.000.000.mc4` | Dead Island 2 |
 | `PPSA03098_01.000.001.mc4` | Dead Island 2 |
 | `PPSA03098_01.000.010.mc4` | Dead Island 2 |
@@ -116,10 +117,12 @@ Both:
 | `PPSA10662_01.002.000.mc4` | The Last of Us: Part II Remastered |
 | `PPSA10695_01.014.400.mc4` | Atomic Heart |
 | `PPSA10872_01.008.000.mc4` | Persona 3 Reload |
+| `PPSA13195_01.014.001.mc4` | Stellar Blade |
 | `PPSA13526_01.000.001.mc4` | Gylt |
 | `PPSA13579_01.007.000.mc4` | Blasphemous 2 |
 | `PPSA14251_01.006.000.mc4` | Mafia: The Old Country |
 | `PPSA14299_01.006.000.mc4` | Mafia: The Old Country |
+| `PPSA15186_01.000.003.mc4` | Vampire: The Masquerade® - Bloodlines™ 2 |
 | `PPSA15210_01.000.000.mc4` | Dragon Ball: Sparking! ZERO |
 | `PPSA15211_01.000.000.mc4` | Dragon Ball: Sparking! ZERO |
 | `PPSA15304_01.001.004.mc4` | METAL GEAR SOLID Δ: SNAKE EATER |
