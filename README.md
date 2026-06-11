@@ -17,11 +17,11 @@ Both:
 
 ## 📋 Cheat Lists
 
-> Last updated: **2026-06-11 16:49 UTC**
+> Last updated: **2026-06-11 18:00 UTC**
 > 📄 [View full list on GitHub Pages](https://rdx-sci01.github.io/HEN-PPSA-Cheats)
 
 <details>
-<summary><strong>MC4 Cheats</strong> — 133 entries</summary>
+<summary><strong>MC4 Cheats</strong> — 134 entries</summary>
 
 | File | Game |
 |------|------|
@@ -144,6 +144,7 @@ Both:
 | `PPSA22327_01.685.672.mc4` | Forza Horizon 5 |
 | `PPSA23226_01.000.010.mc4` | Black Myth: Wukong |
 | `PPSA23226_01.000.016.mc4` | Black Myth: Wukong |
+| `PPSA23806_01.002.000.mc4` | Darksiders II: Deathinitive Edition |
 | `PPSA24096_01.006.000.mc4` | Cronos: The New Dawn |
 | `PPSA25286_01.000.151.mc4` | Crimson Desert |
 | `PPSA25381_01.000.000.mc4` | Elden Ring Nightreign |
